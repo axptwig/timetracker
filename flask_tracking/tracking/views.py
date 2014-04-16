@@ -1,0 +1,139 @@
+from flask import abort, Blueprint, flash, jsonify, Markup, redirect, render_template, request, url_for
+from flask.ext.login import current_user, login_required
+
+from .forms import PunchInForm, VisitForm
+from .geodata import get_geodata
+from .models import Site, Visit, Entry
+from flask_tracking.data import query_to_list
+import datetime
+
+tracking = Blueprint("tracking", __name__)
+
+
+@tracking.route("/")
+def index():
+    if not current_user.is_anonymous():
+        return redirect(url_for(".view_sites"))
+    return render_template("index.html")
+
+
+@tracking.route("/sites/<int:site_id>")
+@login_required
+def view_site_visits(site_id=None):
+    site = Site.get_or_404(site_id)
+    if not site.user_id == current_user.id:
+        abort(401)
+
+    query = Visit.query.filter(Visit.site_id == site_id)
+    data = query_to_list(query)
+    return render_template("tracking/site.html", visits=data, site=site)
+
+def prettyEntries(e):
+    l = []
+    for t in e:
+        g = []
+        for cell in t:
+            if type(cell) is str or len(g) == 0:
+                g.append(cell)
+            elif cell is None:
+                g.append("")
+            else:
+                if (cell.year == 1):
+                    g.append("In Progress")
+                else:
+                    g.append(cell.strftime('%Y-%m-%d %H:%M'))
+        l.append(g)
+    return l
+
+
+@tracking.route("/timecards/<int:user_id>")
+def listTimecards(user_id = None):
+    timecards = Entry.query.filter(Entry.user_id == user_id).with_entities(Entry.id, Entry.punchIn, Entry.punchOut, Entry.punchInComment,Entry.punchOutComment).all()
+    l = prettyEntries(timecards)
+    return render_template("tracking/entries.html", entries=l, user_id=user_id)
+
+
+@tracking.route("/timecards/<int:user_id>/punchIn")
+def punch_in(user_id=None):
+    entry = Entry.create(user_id=user_id)
+    timecards = Entry.query.filter(Entry.user_id == user_id).with_entities(Entry.id, Entry.punchIn, Entry.punchOut, Entry.punchInComment,Entry.punchOutComment).all()
+    l = prettyEntries(timecards)
+
+    return render_template("tracking/entries.html", entries=l, user_id=user_id)
+
+@tracking.route("/timecards/<int:user_id>/punchOut")
+def punch_out(user_id=None):    
+    entry = Entry.query.filter(Entry.user_id == user_id and Entry.punchOut == datetime.datetime.min).all()
+    timecards = Entry.query.filter(Entry.user_id == user_id).with_entities(Entry.id, Entry.punchIn, Entry.punchOut, Entry.punchInComment,Entry.punchOutComment).all()
+    l = prettyEntries(timecards)
+
+    
+    for e in entry:
+        if e.punchOut != datetime.datetime.min:
+            continue
+        e.punch_out()
+
+    return render_template("tracking/entries.html", entries=l, user_id=user_id)
+
+@tracking.route("/sites/<int:site_id>/visit", methods=("GET", "POST"))
+def add_visit(site_id=None):
+    site = Site.get_or_404(site_id)
+
+    browser = request.headers.get("User-Agent")
+    url = request.values.get("url") or request.headers.get("Referer")
+    event = request.values.get("event")
+    ip_address = request.access_route[0] or request.remote_addr
+    geodata = get_geodata(ip_address)
+    location = "{}, {}".format(geodata.get("city"),
+                               geodata.get("zipcode"))
+    form = VisitForm(csrf_enabled=False,
+                     site=site,
+                     browser=browser,
+                     url=url,
+                     ip_address=ip_address,
+                     latitude=geodata.get("latitude"),
+                     longitude=geodata.get("longitude"),
+                     location=location,
+                     event=event)
+
+    if form.validate():
+        Visit.create(**form.data)
+        return '', 204
+
+    return jsonify(errors=form.errors), 400
+
+
+@tracking.route("/sites", methods=("GET", "POST"))
+@login_required
+def view_sites():
+    form = PunchInForm()
+
+    if form.validate_on_submit():
+        Entry.create(owner=current_user, **form.data)
+        flash("Punched In")
+        return redirect(url_for(".punchOut"))
+
+    query = Entry.query.filter(Entry.user_id == current_user.id)
+    data = query_to_list(query)
+    results = []
+
+    try:
+  
+        results = [next(data)]
+        for row in data:
+            row = [_make_link(cell) if i == 0 else cell
+                   for i, cell in enumerate(row)]
+            results.append(row)
+    except StopIteration:
+
+        pass
+
+    return render_template("tracking/entries.html", entries=results, form=form)
+
+
+_LINK = Markup('<a href="{url}">{name}</a>')
+
+
+def _make_link(site_id):
+    url = url_for(".view_site_visits", site_id=site_id)
+    return _LINK.format(url=url, name=site_id)

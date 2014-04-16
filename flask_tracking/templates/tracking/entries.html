@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% import "helpers/tables.html" as tables %}
+{% block title %}View entries{% endblock %}
+{% block content %}
+{{ super() }}
+
+<style type="text/css">
+	#timecard tr td{
+		padding-right:30px;
+	}
+</style>
+
+<table id="timecard">
+	<tr>
+		<td align='center'>Clock in time</td>
+		<td align='center'>Clock out time</td>
+		<td align='center'>Comments</td>
+	</tr>
+{% for t in entries %}
+    <tr>
+    	{% for i in range(1,3) %}
+        	<td>{{ t[i] }}</td>
+        {% endfor %}
+    </tr>
+{% endfor %}
+
+</table>
+{% endblock content %}

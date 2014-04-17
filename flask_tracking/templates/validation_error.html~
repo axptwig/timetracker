@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {% import "helpers/forms.html" as forms %}
-{% block title %}Validation Error - TimeTracker{% endblock %}
+{% block title %}Validation Error - Flask Tracking{% endblock %}
 {% block content %}
 {{ super() }}
 <p>An error occured, please correct any mistakes and try again.</p>

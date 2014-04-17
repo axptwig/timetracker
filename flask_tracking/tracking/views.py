@@ -2,8 +2,8 @@ from flask import abort, Blueprint, flash, jsonify, Markup, redirect, render_tem
 from flask.ext.login import current_user, login_required
 
 from .forms import PunchInForm, VisitForm
-from .geodata import get_geodata
-from .models import Site, Visit, Entry
+
+from .models import Site, Entry
 from ..users.models import User
 
 from flask_tracking.data import query_to_list
@@ -95,33 +95,6 @@ def deleteEntry(user_id, entry_id):
     return '',200
 
 
-
-@tracking.route("/sites/<int:site_id>/visit", methods=("GET", "POST"))
-def add_visit(site_id=None):
-    site = Site.get_or_404(site_id)
-
-    browser = request.headers.get("User-Agent")
-    url = request.values.get("url") or request.headers.get("Referer")
-    event = request.values.get("event")
-    ip_address = request.access_route[0] or request.remote_addr
-    geodata = get_geodata(ip_address)
-    location = "{}, {}".format(geodata.get("city"),
-                               geodata.get("zipcode"))
-    form = VisitForm(csrf_enabled=False,
-                     site=site,
-                     browser=browser,
-                     url=url,
-                     ip_address=ip_address,
-                     latitude=geodata.get("latitude"),
-                     longitude=geodata.get("longitude"),
-                     location=location,
-                     event=event)
-
-    if form.validate():
-        Visit.create(**form.data)
-        return '', 204
-
-    return jsonify(errors=form.errors), 400
 
 
 @tracking.route("/sites", methods=("GET", "POST"))

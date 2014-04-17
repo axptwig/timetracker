@@ -2,16 +2,18 @@
 <html>
 <head>
 <title>{% block title %}{{ title }}{% endblock %}</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
 </head>
 <body>
 <header>
 <h1>{{ self.title() }}</h1>
 <nav>
 <ul>
-<li><a href="/">Home</a></li>
-<li><a href="/timecards/{{current_user.id}}">Timecards</a></li>
+<li><a href="/timecards/all">All Timecards</a></li>
+ {% if not current_user.is_anonymous() %}
+<li><a href="/timecards/{{current_user.id}}">My Timecards</a></li>
 <li><a href="/timecards/{{current_user.id}}/punchIn">Punch In</a></li>
-<li><a href="/timecards/{{current_user.id}}/punchOut">Punch Out</a></li>
+{% endif %}
 <li>
 	{% if current_user.is_anonymous() %}
 	<a href="{{url_for('users.register')}}">Register</a> / <a href="{{url_for('users.login')}}">Log In</a>

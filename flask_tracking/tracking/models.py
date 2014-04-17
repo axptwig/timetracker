@@ -8,7 +8,7 @@ class Entry(CRUDMixin, db.Model):
 
 
     user_id = db.Column(db.Integer, db.ForeignKey('users_user.id'))
-    punchIn = db.Column(db.TIMESTAMP, default = datetime.datetime.now())
+    punchIn = db.Column(db.TIMESTAMP)
     punchOut = db.Column(db.TIMESTAMP, default = datetime.datetime.min)
     punchInComment = db.Column(db.String)
     punchOutComment = db.Column(db.String)
@@ -17,8 +17,20 @@ class Entry(CRUDMixin, db.Model):
     def __repr__(self):
         return '<Entry {:d}>'.format(self.id)
 
+    def __init__(self, user_id=None):
+        self.user_id = user_id
+        self.punchIn = datetime.datetime.now()
+
     def punch_out(self):
         self.punchOut = datetime.datetime.now()
+        db.session.commit()
+
+    def updateComment(self, comment):
+        self.punchOutComment = comment
+        db.session.commit()
+
+    def delete(self):
+        db.session.delete(self)
         db.session.commit()
 
     def __str__(self):

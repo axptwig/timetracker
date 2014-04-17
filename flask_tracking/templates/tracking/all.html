@@ -5,7 +5,7 @@
 {{ super() }}
 
 <style type="text/css">
-	#timecard tr td{
+	.timecard tr td{
 		padding-right:30px;
 	}
 </style>
@@ -42,28 +42,21 @@ function punchOut(e, elem){
 
 </script>
 
-<table id="timecard">
+{% for user in users %}
+<h2>{{user.name}}</h2>
+<table class="timecard">
 	<tr>
 		<td align='center'>Clock in time</td>
 		<td align='center'>Clock out time</td>
 		<td align='center'>Comments</td>
 	</tr>
-{% for t in entries %}
+{% for t in user.entries %}
     <tr>
-    	<td>{{t[1]}}</td>
-        {% if t[2] == "In Progress" %}
-        	<td><a onclick="punchOut({{t[0]}}, this.parentNode)" href="#">Punch Out</a></td>
-        {%else%}
-        	<td>{{t[2]}}</td>
-        {%endif %}
-        {% for i in range(3,4) %}
-        	<td>{{ t[i] }}</td>
-        {% endfor %}
-
-        <td><a class='updateCommentLinks' href="#" onclick=" updateComment({{t[0]}}, $(this).parent().prev()[0]);">Edit Comment</a></td>
-        <td><a class='deleteCommentLinks' href="#" onclick=" if (confirm('Are you sure you want to delete this entry?')) deleteComment({{t[0]}}, $(this).parent().parent()[0]);">Delete</a></td>
+    	<td>{{t.punchIn}}</td>
+    	<td>{{t.punchOut}}</td>
+    	<td>{{t.punchOutComment}}</td>
     </tr>
 {% endfor %}
-
+{% endfor %}
 </table>
 {% endblock content %}

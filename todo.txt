@@ -1,3 +1,4 @@
+- Hide buttons if not logged in.
 - Comments
 - Make only one of punch in or punch out appear at a time.
 - Comment the code

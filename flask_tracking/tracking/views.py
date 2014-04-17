@@ -4,6 +4,8 @@ from flask.ext.login import current_user, login_required
 from .forms import PunchInForm, VisitForm
 from .geodata import get_geodata
 from .models import Site, Visit, Entry
+from ..users.models import User
+
 from flask_tracking.data import query_to_list
 import datetime
 
@@ -33,7 +35,7 @@ def prettyEntries(e):
     for t in e:
         g = []
         for cell in t:
-            if type(cell) is str or len(g) == 0:
+            if type(cell) is str or type(cell) is unicode or  len(g) == 0:
                 g.append(cell)
             elif cell is None:
                 g.append("")
@@ -48,32 +50,51 @@ def prettyEntries(e):
 
 @tracking.route("/timecards/<int:user_id>")
 def listTimecards(user_id = None):
-    timecards = Entry.query.filter(Entry.user_id == user_id).with_entities(Entry.id, Entry.punchIn, Entry.punchOut, Entry.punchInComment,Entry.punchOutComment).all()
+    timecards = Entry.query.filter(Entry.user_id == user_id).with_entities(Entry.id, Entry.punchIn, Entry.punchOut,Entry.punchOutComment).all()
     l = prettyEntries(timecards)
     return render_template("tracking/entries.html", entries=l, user_id=user_id)
+
+@tracking.route("/timecards/all")
+def allTimecards():
+    timecards = User.query.all()
+    return render_template("tracking/all.html", users=timecards)
 
 
 @tracking.route("/timecards/<int:user_id>/punchIn")
 def punch_in(user_id=None):
     entry = Entry.create(user_id=user_id)
-    timecards = Entry.query.filter(Entry.user_id == user_id).with_entities(Entry.id, Entry.punchIn, Entry.punchOut, Entry.punchInComment,Entry.punchOutComment).all()
+    timecards = Entry.query.filter(Entry.user_id == user_id).with_entities(Entry.id, Entry.punchIn, Entry.punchOut,Entry.punchOutComment).all()
     l = prettyEntries(timecards)
 
     return render_template("tracking/entries.html", entries=l, user_id=user_id)
 
-@tracking.route("/timecards/<int:user_id>/punchOut")
-def punch_out(user_id=None):    
-    entry = Entry.query.filter(Entry.user_id == user_id and Entry.punchOut == datetime.datetime.min).all()
-    timecards = Entry.query.filter(Entry.user_id == user_id).with_entities(Entry.id, Entry.punchIn, Entry.punchOut, Entry.punchInComment,Entry.punchOutComment).all()
-    l = prettyEntries(timecards)
-
-    
-    for e in entry:
-        if e.punchOut != datetime.datetime.min:
-            continue
+@tracking.route("/timecards/<int:user_id>/<int:entry_id>/punchOut")
+def punch_out(user_id, entry_id):    
+    e = Entry.query.filter(Entry.id == entry_id).one()
+    if e.punchOut == datetime.datetime.min:
         e.punch_out()
+        return e.punchOut.strftime('%Y-%m-%d %H:%M'),200
+    return '',400
 
-    return render_template("tracking/entries.html", entries=l, user_id=user_id)
+    #return render_template("tracking/entries.html", entries=l, user_id=user_id)
+
+@tracking.route("/timecards/<int:user_id>/<int:entry_id>/updateComment", methods=["POST", "GET"])
+def updateComment(user_id, entry_id):    
+    comment = request.values.get("comment")
+    entry = Entry.query.filter(Entry.id == entry_id).one()
+    entry.updateComment(comment);
+
+
+    return '',200
+
+@tracking.route("/timecards/<int:user_id>/<int:entry_id>/deleteEntry", methods=["GET"])
+def deleteEntry(user_id, entry_id):    
+    entry = Entry.query.filter(Entry.id == entry_id).one()
+    entry.delete();
+
+    return '',200
+
+
 
 @tracking.route("/sites/<int:site_id>/visit", methods=("GET", "POST"))
 def add_visit(site_id=None):
